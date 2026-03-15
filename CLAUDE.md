@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Development
 npm run dev              # Start dev server with turbopack on http://localhost:3000
+npm run dev:daemon       # Same, but runs in background and writes to logs.txt
 npm run build            # Build for production
 npm run start            # Run production server
 npm run lint             # Run ESLint
@@ -22,6 +23,8 @@ npm run db:reset         # Reset database (destroys all data)
 npx prisma migrate dev --name <name>  # Create new migration
 npx prisma generate      # Regenerate Prisma client after schema changes
 ```
+
+> All `next` commands are wrapped with `cross-env NODE_OPTIONS=--require=./node-compat.cjs` — use the npm scripts, not `next` directly.
 
 ## Architecture
 
@@ -52,6 +55,8 @@ UIGen is an AI-powered React component generator. Users describe components in n
 
 - **`src/lib/prompts/generation.tsx`** - System prompt instructing Claude to generate React components with Tailwind CSS, using `/App.jsx` as entry point.
 
+- **`src/lib/anon-work-tracker.ts`** - Stores anonymous user work (messages + VFS snapshot) in `sessionStorage` so it can be claimed after sign-up/login.
+
 ### Contexts
 
 - **`FileSystemProvider`** (`src/lib/contexts/file-system-context.tsx`) - Manages `VirtualFileSystem` instance, selected file state, and tool call execution.
@@ -62,11 +67,15 @@ UIGen is an AI-powered React component generator. Users describe components in n
 
 - `/` - Home page, redirects authenticated users to their latest project
 - `/[projectId]` - Project editor (protected route)
-- `/api/chat` - POST endpoint for AI streaming, saves results to database
+- `/api/chat` - POST endpoint for AI streaming, saves results to database (publicly accessible — anonymous projects are supported)
+
+### Middleware
+
+`src/middleware.ts` protects `/api/projects` and `/api/filesystem`. `/api/chat` is intentionally unprotected to support anonymous usage.
 
 ### Database Schema (Prisma + SQLite)
 
-The database schema is defined in `prisma/schema.prisma`. Reference it anytime you need to understand the structure of data stored in the database.
+The database schema is defined in `prisma/schema.prisma`.
 
 - **User**: `id`, `email`, `password` (bcrypt), timestamps
 - **Project**: `id`, `name`, `userId?`, `messages` (JSON string), `data` (serialized VFS), timestamps
@@ -98,6 +107,7 @@ JWT-based auth with tokens stored in httpOnly cookies. See `src/lib/auth.ts` for
 - **shadcn/ui** components in `src/components/ui/` (New York style)
 - **Monaco Editor** for code editing
 - **Babel standalone** for client-side JSX transformation
+- **Vitest** with jsdom environment and `@testing-library/react`
 
 ## Environment Variables
 
